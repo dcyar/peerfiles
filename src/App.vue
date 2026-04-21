@@ -163,7 +163,8 @@ const shareFiles = async (files) => {
       size: file.size,
       type: file.type,
       data: arrayBuffer,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ownerId: myPeerId.value // Agregar el ID del dueño del archivo
     }
     
     sharedFiles.value.push(fileData)
@@ -195,6 +196,12 @@ const downloadFile = (fileData) => {
 
 // Eliminar archivo
 const deleteFile = (fileData, index) => {
+  // Verificar que el usuario sea el dueño del archivo
+  if (fileData.ownerId !== myPeerId.value) {
+    alert('Solo el usuario que compartió el archivo puede eliminarlo')
+    return
+  }
+  
   // Confirmar eliminación
   if (!confirm(`¿Estás seguro de eliminar "${fileData.name}"?`)) {
     return
@@ -283,6 +290,7 @@ onUnmounted(() => {
             placeholder="Código (4 caracteres)"
             maxlength="4"
             class="input"
+            @input="joinCode = joinCode.toUpperCase()"
             @keyup.enter="joinRoom"
           />
           <button @click="joinRoom" class="btn btn-primary">
@@ -353,7 +361,11 @@ onUnmounted(() => {
                 <button @click="downloadFile(file)" class="btn btn-small btn-success">
                   ⬇️ Descargar
                 </button>
-                <button @click="deleteFile(file, index)" class="btn btn-small btn-danger">
+                <button 
+                  v-if="file.ownerId === myPeerId"
+                  @click="deleteFile(file, index)" 
+                  class="btn btn-small btn-danger"
+                >
                   🗑️ Eliminar
                 </button>
               </div>
