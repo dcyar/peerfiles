@@ -113,6 +113,20 @@ const setupConnection = (conn) => {
           })
         }
       }
+    } else if (data.type === 'delete-file') {
+      // Eliminar archivo cuando se recibe la notificación
+      sharedFiles.value = sharedFiles.value.filter(f => 
+        !(f.name === data.file.name && f.size === data.file.size && f.timestamp === data.file.timestamp)
+      )
+      
+      // Reenviar a otros peers si es host
+      if (isHost.value) {
+        connections.value.forEach(c => {
+          if (c.peer !== conn.peer && c.open) {
+            c.send(data)
+          }
+        })
+      }
     }
   })
   
@@ -177,6 +191,31 @@ const downloadFile = (fileData) => {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+// Eliminar archivo
+const deleteFile = (fileData, index) => {
+  // Confirmar eliminación
+  if (!confirm(`¿Estás seguro de eliminar "${fileData.name}"?`)) {
+    return
+  }
+  
+  // Eliminar localmente
+  sharedFiles.value.splice(index, 1)
+  
+  // Notificar a todos los peers conectados
+  connections.value.forEach(conn => {
+    if (conn.open) {
+      conn.send({
+        type: 'delete-file',
+        file: {
+          name: fileData.name,
+          size: fileData.size,
+          timestamp: fileData.timestamp
+        }
+      })
+    }
+  })
 }
 
 // Formatear tamaño de archivo
@@ -310,9 +349,14 @@ onUnmounted(() => {
                   <div class="file-size">{{ formatFileSize(file.size) }}</div>
                 </div>
               </div>
-              <button @click="downloadFile(file)" class="btn btn-small btn-success">
-                ⬇️ Descargar
-              </button>
+              <div class="file-actions">
+                <button @click="downloadFile(file)" class="btn btn-small btn-success">
+                  ⬇️ Descargar
+                </button>
+                <button @click="deleteFile(file, index)" class="btn btn-small btn-danger">
+                  🗑️ Eliminar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -605,6 +649,12 @@ header h1 {
   color: #999;
 }
 
+.file-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 @media (max-width: 768px) {
   header h1 {
     font-size: 1.8rem;
@@ -631,6 +681,15 @@ header h1 {
   .file-item {
     flex-direction: column;
     gap: 10px;
+  }
+  
+  .file-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+  
+  .file-actions .btn {
+    flex: 1;
   }
 }
 </style>
